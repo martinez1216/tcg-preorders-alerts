@@ -1,0 +1,38 @@
+name: TCG Preorder Monitor
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-slim
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Run TCG monitor
+        env:
+          PUSHOVER_WEBHOOK_URL: ${{ secrets.PUSHOVER_WEBHOOK_URL }}
+        run: python monitor.py
+
+      - name: Save monitoring state
+        run: |
+          git config user.name "TCG Preorder Monitor"
+          git config user.email "actions@users.noreply.github.com"
+          git add state/
+          git diff --cached --quiet || git commit -m "Update preorder monitoring state"
+          git push
