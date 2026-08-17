@@ -47,7 +47,6 @@ SOURCES = [
     },
 ]
 
-
 def load_state():
     STATE_DIR.mkdir(exist_ok=True)
 
