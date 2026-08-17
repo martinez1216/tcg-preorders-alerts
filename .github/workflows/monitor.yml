@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
+    inputs:
+      test_alert:
+        description: "Send a test Pushover notification"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -24,12 +30,38 @@ jobs:
       - name: Install dependencies
         run: pip install requests beautifulsoup4
 
+      - name: Send test alert
+        if: ${{ inputs.test_alert == true }}
+        env:
+          PUSHOVER_WEBHOOK_URL: ${{ secrets.PUSHOVER_WEBHOOK_URL }}
+        run: |
+          python - <<'PY'
+          import os
+          import requests
+
+          response = requests.post(
+              os.environ["PUSHOVER_WEBHOOK_URL"],
+              json={
+                  "title": "🚨 TCG MONITOR TEST",
+                  "message": "Your One Piece / Dragon Ball preorder alert system is working!",
+                  "url": "https://p-bandai.com/us/",
+                  "url_title": "Open Premium Bandai"
+              },
+              timeout=30
+          )
+
+          response.raise_for_status()
+          print("Pushover test sent successfully.")
+          PY
+
       - name: Run TCG monitor
+        if: ${{ inputs.test_alert != true }}
         env:
           PUSHOVER_WEBHOOK_URL: ${{ secrets.PUSHOVER_WEBHOOK_URL }}
         run: python monitor.py
 
       - name: Save monitoring state
+        if: ${{ inputs.test_alert != true }}
         run: |
           git config user.name "TCG Preorder Monitor"
           git config user.email "actions@users.noreply.github.com"
