@@ -45,7 +45,8 @@ SOURCES = [
         "url": "https://www.southernhobby.com/products_recent.php",
         "type": "southern_hobby",
     },
-    ]
+]
+
 
 def load_state():
     STATE_DIR.mkdir(exist_ok=True)
