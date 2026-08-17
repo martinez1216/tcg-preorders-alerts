@@ -19,7 +19,7 @@ HEADERS = {
         "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) "
         "AppleWebKit/605.1.15 Safari/604.1"
     )
-}
+    }
 SOURCES = [
     {
         "name": "Bandai One Piece",
@@ -45,7 +45,7 @@ SOURCES = [
         "url": "https://www.southernhobby.com/products_recent.php",
         "type": "southern_hobby",
     },
-]
+    ]
 
 def load_state():
     STATE_DIR.mkdir(exist_ok=True)
