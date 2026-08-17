@@ -47,8 +47,6 @@ SOURCES = [
         "type": "southern_hobby",
     },
 ]
-
-
         "name": "Bandai One Piece",
         "game": "ONE PIECE",
         "url": "https://en.onepiece-cardgame.com/products/",
