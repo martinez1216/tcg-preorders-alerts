@@ -23,30 +23,12 @@ HEADERS = {
 
 SOURCES = [
     {
-        "name": "Bandai One Piece",
-        "game": "ONE PIECE",
-        "url": "https://en.onepiece-cardgame.com/products/",
-        "type": "bandai",
-    },
-    {
-        "name": "Bandai Dragon Ball Fusion World",
-        "game": "DRAGON BALL",
-        "url": "https://www.dbs-cardgame.com/fw/en/products/",
-        "type": "bandai",
-    },
-    {
         "name": "Premium Bandai USA",
         "game": "BANDAI PREMIUM",
         "url": "https://p-bandai.com/us/",
         "type": "bandai",
     },
     {
-        "name": "Southern Hobby",
-        "game": "DISTRIBUTOR",
-        "url": "https://www.southernhobby.com/products_recent.php",
-        "type": "southern_hobby",
-    },
-]
         "name": "Bandai One Piece",
         "game": "ONE PIECE",
         "url": "https://en.onepiece-cardgame.com/products/",
