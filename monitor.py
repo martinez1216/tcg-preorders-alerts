@@ -45,6 +45,12 @@ SOURCES = [
         "url": "https://www.southernhobby.com/products_recent.php",
         "type": "southern_hobby",
     },
+{
+        "name": "Kollect Korner",
+        "game": "ONE PIECE / DRAGON BALL",
+        "url": "https://www.kollectkorner.com/collections/preorders",
+        "type": "kollect_korner",
+    },
 ]
 
 def load_state():
