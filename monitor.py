@@ -291,126 +291,79 @@ def monitor_southern_hobby(source, html, state):
         f"{len(new_items)} new, "
         f"{len(changed_items)} changed"
     )
+    
 def monitor_kollect_korner(source, html, state):
-    soup = BeautifulSoup(html, "html.parser")
+    import requests
 
-    products = []
+    base_url = "https://www.kollectkorner.com"
+    products_url = (
+        f"{base_url}/collections/preorders/products.json?limit=250"
+    )
 
-    # Shopify product cards
-    for item in soup.select(
-        "li.grid__item, .card-wrapper, .product-card-wrapper, "
-        ".product-grid .grid__item, .product-item"
-    ):
-        text = clean_text(item.get_text(" ", strip=True))
+    response = requests.get(
+        products_url,
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) "
+                "AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1"
+            )
+        },
+        timeout=30,
+    )
 
-        if not text:
+    response.raise_for_status()
+
+    data = response.json()
+    products = data.get("products", [])
+
+    monitored = []
+
+    for product in products:
+        title = product.get("title", "").strip()
+
+        if not title:
             continue
 
-        # Only monitor the two games we care about.
+        # Only monitor One Piece and Dragon Ball Fusion World.
         if not re.search(
             r"(One Piece|Dragon Ball.*Fusion World)",
-            text,
+            title,
             re.IGNORECASE,
         ):
             continue
 
-        # Only monitor actual preorder listings.
-        if not re.search(
-            r"(pre[\s-]?order|preorder)",
-            text,
-            re.IGNORECASE,
-        ):
-            continue
+        variants = product.get("variants", [])
 
-        # Determine whether the product is currently purchasable.
-        sold_out = bool(
-            re.search(
-                r"(sold out|unavailable)",
-                text,
-                re.IGNORECASE,
-            )
+        # Product is available if at least one variant is available.
+        available = any(
+            variant.get("available", False)
+            for variant in variants
         )
 
-        available = bool(
-            re.search(
-                r"(add to cart|add to bag|buy now)",
-                text,
-                re.IGNORECASE,
+        # Shopify product URL.
+        handle = product.get("handle", "")
+
+        if handle:
+            product_url = (
+                f"{base_url}/products/{handle}"
             )
-        )
-
-        # Try to find the product URL.
-        link = item.find("a", href=True)
-
-        if link:
-            product_url = link["href"]
-
-            if product_url.startswith("/"):
-                product_url = "https://www.kollectkorner.com" + product_url
         else:
             product_url = source["url"]
 
-        # Create a compact record.
-        record = {
-            "text": text,
-            "url": product_url,
-            "available": available and not sold_out,
-        }
-
-        products.append(record)
-
-    # Fallback: inspect links if the Shopify card selectors change.
-    if not products:
-        for link in soup.find_all("a", href=True):
-            text = clean_text(link.get_text(" ", strip=True))
-
-            if not text:
-                continue
-
-            if not re.search(
-                r"(One Piece|Dragon Ball.*Fusion World)",
-                text,
-                re.IGNORECASE,
-            ):
-                continue
-
-            if not re.search(
-                r"(pre[\s-]?order|preorder)",
-                text,
-                re.IGNORECASE,
-            ):
-                continue
-
-            url = link["href"]
-
-            if url.startswith("/"):
-                url = "https://www.kollectkorner.com" + url
-
-            products.append(
-                {
-                    "text": text,
-                    "url": url,
-                    "available": True,
-                }
-            )
-
-    # Deduplicate products.
-    unique = {}
-
-    for product in products:
-        key = product["url"]
-
-        if key not in unique:
-            unique[key] = product
-
-    products = list(unique.values())
+        monitored.append(
+            {
+                "title": title,
+                "url": product_url,
+                "available": available,
+            }
+        )
 
     current = {
         product["url"]: {
-            "text": product["text"],
+            "title": product["title"],
             "available": product["available"],
         }
-        for product in products
+        for product in monitored
     }
 
     source_key = source["name"]
@@ -422,23 +375,30 @@ def monitor_kollect_korner(source, html, state):
 
         print(
             f"{source_key}: baseline established "
-            f"({len(current)} products)"
+            f"({len(current)} One Piece / Dragon Ball products)"
         )
 
         return
 
-    for product in products:
-        url = product["url"]
-        current_data = current[url]
-        previous_data = previous.get(url)
+    new_count = 0
+    available_count = 0
 
-        # Brand-new preorder listing.
-        if previous_data is None:
+    for product in monitored:
+        url = product["url"]
+        title = product["title"]
+        now_available = product["available"]
+
+        old = previous.get(url)
+
+        # New One Piece / Dragon Ball preorder.
+        if old is None:
+            new_count += 1
+
             game = (
                 "ONE PIECE"
                 if re.search(
                     r"One Piece",
-                    product["text"],
+                    title,
                     re.IGNORECASE,
                 )
                 else "DRAGON BALL"
@@ -447,7 +407,7 @@ def monitor_kollect_korner(source, html, state):
             send_alert(
                 f"🚨 {game} — KOLLECT KORNER PREORDER",
                 (
-                    f"{product['text']}\n\n"
+                    f"{title}\n\n"
                     "New preorder detected at Kollect Korner."
                 ),
                 url,
@@ -455,16 +415,18 @@ def monitor_kollect_korner(source, html, state):
 
             continue
 
-        # Existing preorder changed from unavailable to available.
+        # Previously unavailable → available.
         if (
-            not previous_data.get("available", False)
-            and current_data.get("available", False)
+            not old.get("available", False)
+            and now_available
         ):
+            available_count += 1
+
             game = (
                 "ONE PIECE"
                 if re.search(
                     r"One Piece",
-                    product["text"],
+                    title,
                     re.IGNORECASE,
                 )
                 else "DRAGON BALL"
@@ -473,9 +435,9 @@ def monitor_kollect_korner(source, html, state):
             send_alert(
                 f"🔥 {game} — KOLLECT KORNER NOW AVAILABLE",
                 (
-                    f"{product['text']}\n\n"
+                    f"{title}\n\n"
                     "A previously unavailable preorder "
-                    "is now showing as available."
+                    "is now available."
                 ),
                 url,
             )
@@ -484,9 +446,15 @@ def monitor_kollect_korner(source, html, state):
 
     print(
         f"{source_key}: "
-        f"{len(products)} One Piece / Dragon Ball "
-        f"preorders monitored"
+        f"{len(current)} One Piece / Dragon Ball products monitored"
     )
+
+    print(
+        f"{source_key}: "
+        f"{new_count} new, "
+        f"{available_count} became available"
+    )
+
 
 
 def main():
